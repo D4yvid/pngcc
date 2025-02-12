@@ -5,13 +5,13 @@ CFLAGS += -Wall -Werror -Wno-pedantic -Wno-macro-redefined -Wno-unused-function 
 	  -Wno-unused-variable -ansi -D_XOPEN_SOURCE=500 -I third-party/stb
 LFLAGS += -lm
 
-TARGET = p2c
+TARGET = pngcc
 
 all:
 	$(CC) -o $(TARGET) $(SRC) $(CFLAGS) $(LFLAGS)
 
 test: all
-	./p2c -o examples/image.h -i examples/image.png
+	./$(TARGET) -o examples/image.h -i examples/image.png
 	$(CC) -o examples/print_image examples/print_image.c -Iexamples
 	./examples/print_image
 
