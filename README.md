@@ -1,13 +1,13 @@
-# p2c
-A simple PNG to C compiler (P2C)
+# pngcc
+A simple PNG to C compiler
 
 # Usage:
 ```console
-$ ./p2c -i <input file> -o <output file>
+$ ./pngcc -i <input file> -o <output file>
 ```
 
 ```
-$ ./p2c -h
+$ ./pngcc -h
 PNG 2 C Compiler
 version: 0.1-dev
 
