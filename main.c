@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -17,10 +18,6 @@ static void write_pixel_value(FILE *outfile, unsigned char *image_data, int x, i
 
 static char *output_file;
 static char *input_file;
-static enum {
-	FORMAT_XY,
-	FORMAT_YX
-} pixel_output_format = FORMAT_XY;
 
 int main(int argc, char **argv)
 {
@@ -72,7 +69,6 @@ static void print_help()
 	puts("Usage:");
 	puts("\t-i\t\tThe input file used to convert");
 	puts("\t-o\t\tThe output file to write after converting");
-	puts("\t-f\t\tSet the pixel indexing format (use -f -l to list all)");
 	puts("\t-v\t\tShow the program version");
 	puts("\t-h\t\tShow this help menu");
 	puts("");
@@ -115,68 +111,39 @@ static int compile_image(const char *input, const char *output)
 	fprintf(
 		outfile,
 		/** Use static because of issues while including */
-		"static struct {\n"
-		"\tint width, height, format;\n"
-		"\tunsigned int pixels[%d][%d];\n"
-		"} %s_data = {\n"
-		"\t.width = %d,\n"
-		"\t.height = %d,\n"
-		"\t.format = %d,\n"
-		"\t.pixels = {",
-		pixel_output_format == FORMAT_XY ? width : height,
-		pixel_output_format == FORMAT_XY ? height : width,
+		"static struct{"
+		"int width,height,stride;"
+		"unsigned char pixels[%d];"
+		"}%s_data={"
+		".width=%d,"
+		".height=%d,"
+        ".stride=%d,"
+		".pixels={",
+        //              channels (R, G, B)
+        width * height * 3,
 		header_name,
 		width,
 		height,
-		(int) pixel_output_format);
+        //              how many bytes per row
+        width * 3);
 
 	
-	switch (pixel_output_format)
-	{
-	case FORMAT_XY:
-		for (x = 0; x < width; x++)
-		{
-			fprintf(outfile, "{");
-			for (y = 0; y < height; y++)
-			{
-				write_pixel_value(outfile, image_data, x, y, width, height, channels);
+    for (y = 0; y < height; y++)
+    {
+        for (x = 0; x < width; x++)
+        {
+            write_pixel_value(outfile, image_data, x, y, width, height, channels);
 
-				if (y + 1 < height)
-				{
-					fputc(',', outfile);
-				}
-			}
-			fprintf(outfile, "}");
+            if (x + 1 < width)
+            {
+                fputc(',', outfile);
+            }
+        }
 
-			if (x + 1 < width)
-			{
-				fputc(',', outfile);
-			}
-		}
-		break;
-	case FORMAT_YX:
-		for (y = 0; y < height; y++)
-		{
-			fprintf(outfile, "{");
-
-			for (x = 0; x < width; x++)
-			{
-				write_pixel_value(outfile, image_data, x, y, width, height, channels);
-
-				if (x + 1 < width)
-				{
-					fputc(',', outfile);
-				}
-			}
-
-			fprintf(outfile, "}");
-
-			if (y + 1 < height)
-			{
-				fputc(',', outfile);
-			}
-		}
-		break;
+        if (y + 1 < height)
+        {
+            fputc(',', outfile);
+        }
 	}
 
 	fprintf(outfile, "}\n};\n");
@@ -193,7 +160,7 @@ static int compile_image(const char *input, const char *output)
 
 static void write_pixel_value(FILE *outfile, unsigned char *image_data, int x, int y, int width, int height, int channels)
 {
-	unsigned char r, g, b, a;
+	unsigned char r, g, b;
 	int i, color;
 
 	i = ((y * width) + x) * channels;
@@ -201,15 +168,10 @@ static void write_pixel_value(FILE *outfile, unsigned char *image_data, int x, i
 	r = (image_data[i]);
 	g = (image_data[i + 1]);
 	b = (image_data[i + 2]);
-	a = channels > 3 ? image_data[i + 3] : 0xFF;
 
-	color = ((r & 0xFF) << 24) |
-		((g & 0xFF) << 16) |
-		((b & 0xFF) <<  8) |
-		(a & 0xFF);
-
-	fprintf(outfile, "0x%x", color);
-	
+	fprintf(outfile, "0x%x,", r);
+	fprintf(outfile, "0x%x,", g);
+	fprintf(outfile, "0x%x", b);
 }
 
 static int parse_argument(char *arg, int index, int argc, char **argv)
@@ -242,36 +204,6 @@ static int parse_argument(char *arg, int index, int argc, char **argv)
 		}
 
 		output_file = argv[index + 1];
-		return 1;
-	case 'f':
-		if (index + 1 >= argc)
-		{
-			fprintf(stderr, "Please supply an input to -f\n");
-			exit(1);
-		}
-
-		char *format = argv[index + 1];
-
-		if (strcmp(format, "xy") == 0)
-		{
-			pixel_output_format = FORMAT_XY;
-		}
-		else if (strcmp(format, "yx") == 0)
-		{
-			pixel_output_format = FORMAT_YX;
-		}
-		else if (strcmp(format, "-l") == 0)
-		{
-			puts("Indexing order:");
-			puts("\tyx\tpixels[y][x]");
-			puts("\txy\tpixels[x][y]");
-			puts("");
-			exit(0);
-		}
-		else {
-			fprintf(stderr, "Invalid format supplied!");
-		}
-
 		return 1;
 	default:
 		fprintf(stderr, "Unknown option -%c\n", *arg);
